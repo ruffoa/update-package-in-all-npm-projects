@@ -1,0 +1,99 @@
+#!/bin/bash
+if [ "$1" != "" ] && [ "$2" != "" ]; then
+    echo "Starting to update ${1}"
+    cd ~/ #replace this with the directory you want
+
+    appsNotUpdated=""
+
+    for D in *; do
+        if [ -d "${D}" ]; then
+            if [[ $D == * ]]; then  #replace the * on this line with any checks you want to preform on the dir name; eg. *-* would only check dirs with at least one '-' in the name
+            cd $D
+            echo "checking out master in ${D}, and doing a git pull"
+            git checkout master && git pull
+
+            latestVersion=`npm info ${1} version`
+            latestMajor=${latestVersion%%.*}
+
+            npmPackageCheck=`npm list ${1} --depth=0 | grep ${1}`
+            installedInfo=`echo "${npmPackageCheck}" | cut -d'@' -f2`
+
+            if [[ $1 = *"@"* ]]; then
+                installedInfo=`echo "${npmPackageCheck}" | cut -d'@' -f3`
+            fi
+
+            installedVersion=${installedInfo%%.*}
+            # echo $installedInfo
+            # echo $installedVersion
+            echo "Latest version of ${1} is $latestVersion, and the version installed is ${installedInfo}"
+            # echo $latestMajor
+
+            if [ "$3" != "" ]; then
+                if [ "$installedInfo" == "" ] || (( $3 > $installedVersion )); then
+                    echo "will not update as the minimum version (${3}) is higher than ${installedVersion}"
+
+                    if [ "$installedInfo" != "" ]; then
+                        appsNotUpdated="${appsNotUpdated} + ${D}"
+                    fi
+                else
+                    git checkout -b $2
+                    npm update $1 --save-dev
+                    echo "commiting changes to branch ${2}"
+                    git commit -am "bumped ${1}"
+                    git push --set-upstream origin ${2}
+                fi
+            else
+                echo "updating everything; no version specified"
+                git checkout -b $2
+                npm update $1 --save-dev
+                echo "commiting changes to branch ${2}"
+                git commit -am "bumped ${1}"
+                git push --set-upstream origin ${2}
+            fi
+
+            cd ..
+            echo "done!"
+
+            fi
+        fi
+    done
+
+    echo "**Please read the output above, as things may have silently gone wrong**"
+    echo ""
+    echo "-----------------------------------"
+    echo "The following apps were NOT updated"
+    echo $appsNotUpdated
+    echo "-----------------------------------"
+
+else
+    echo ""
+    echo "input arguments are: {package name} {branch name} {?minimum version to be updated} {?commit message}."
+    echo "Commit message if not specified will be 'bumped [package name]'"
+    echo "Minimum version takes a integer denoting the minimum major version that will be updated by this script.  eg. 4 will mean all projects with a installed version of 4 or higher will be updated.  This script will print out all apps that were not updated at the end if any were below this value'"
+    echo ""
+fi
+
+
+    # for D in *; do
+    #     if [ -d "${D}" ]; then
+    #         if [[ $D == iplayer-web-app-* ]]
+    #         then
+    #         cd $D
+    #         echo "checking out master, and doing a git pull"
+    #         git checkout master && git pull
+    #         git checkout -b $2
+    #         echo "updating package ${1} for ${D}"
+
+    #         latestVersion=`npm info ${1} version`
+    #         latestMajor = latestVersion%%.*
+
+    #         if [ 
+    #         npm update $1 --save-dev
+    #         echo "commiting changes to branch ${2}"
+    #         git commit -am "bumped ${1}"
+    #         git push
+    #         cd ..
+    #         echo "done! \n"
+    #         fi
+    #     fi
+    # done
